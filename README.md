@@ -16,7 +16,7 @@ Copy **everything inside this code block** directly into `README.md`:
 
 ## 📌 Overview
 
-**Paridhi** is a high-throughput, multi-agent market intelligence and equity research platform designed to reduce information asymmetry for retail investors.
+**Paridhi** is a high-throughput, multi-agent market intelligence and equity research platform designed to reduce information asymmetry for retail investors..
 
 Instead of relying on a single LLM prompt, Paridhi uses a **parallel pipeline of specialized AI agents** to independently analyze a stock across:
 
@@ -682,4 +682,3 @@ Built for **HACKVERSE: INTO THE WEB — Round 1**
 </p>
 ```
 
-This version is **actual Markdown**, so you won't get the ugly `\[cite: 1\]`, malformed hyperlinks, or nested/duplicate code fences when GitHub renders it.

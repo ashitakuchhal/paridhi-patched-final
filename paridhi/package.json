@@ -1,0 +1,22 @@
+{
+  "name": "paridhi-research-desk",
+  "version": "1.0.0",
+  "description": "Multi-agent retail investor research desk with live market data",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "axios": "^1.7.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "xml2js": "^0.6.2",
+    "yahoo-finance2": "^4.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paridhi — Multi-Stock Research Desk</title>
+<meta name="description" content="Multi-agent market intelligence for retail investors — live data, parallel signal agents, synthesized against your risk profile.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ── Design tokens ───────────────────────────────────────────────────────── */
+  :root {
+    --bg:           #0D1614;
+    --bg-panel:     #131E1B;
+    --bg-raised:    #1A2824;
+    --bg-hover:     #1F3028;
+    --border:       #273530;
+    --border-soft:  #1E2E2A;
+    --text:         #EDEBE3;
+    --text-dim:     #9CA9A4;
+    --text-faint:   #6B7A75;
+    --accent:       #E8A33D;
+    --accent-soft:  rgba(232,163,61,0.12);
+    --accent-glow:  rgba(232,163,61,0.06);
+    --positive:     #6FAE8B;
+    --positive-soft:rgba(111,174,139,0.12);
+    --negative:     #C9705E;
+    --negative-soft:rgba(201,112,94,0.12);
+    --neutral:      #B8A98A;
+    --blue:         #7C93C9;
+    --purple:       #C98AC9;
+    --gold:         #C9A25A;
+    --radius-sm:    4px;
+    --radius:       8px;
+    --radius-lg:    12px;
+    --shadow:       0 2px 16px rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .num { font-family: 'IBM Plex Mono', monospace; font-feature-settings: "tnum"; }
+  h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; margin: 0; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  /* ── Layout ─────────────────────────────────────────────────────────────── */
+  .app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+
+  /* ── Sidebar ─────────────────────────────────────────────────────────────── */
+  .sidebar {
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border-soft);
+    padding: 24px 16px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .brand { padding: 0 4px; }
+  .brand h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+  .brand h1 .mark { color: var(--accent); }
+  .brand p { margin: 4px 0 0; font-size: 12px; color: var(--text-faint); line-height: 1.4; }
+
+  /* Ticker search */
+  .search-wrap { position: relative; }
+  .search-wrap input {
+    width: 100%;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    padding: 9px 36px 9px 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    transition: border-color .15s;
+  }
+  .search-wrap input::placeholder { color: var(--text-faint); text-transform: none; letter-spacing: 0; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; }
+  .search-wrap input:focus { border-color: var(--accent); outline: none; }
+  .search-go {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    background: var(--accent); border: none; border-radius: 3px;
+    color: #1A1204; font-size: 11px; font-weight: 700; padding: 4px 7px; cursor: pointer;
+    transition: filter .15s;
+  }
+  .search-go:hover { filter: brightness(1.1); }
+
+  /* Watchlist */
+  .watchlist-label { font-size: 11px; color: var(--text-faint); font-weight: 500; padding: 0 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .watchlist { display: flex; flex-direction: column; gap: 2px; }
+  .wl-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer;
+    border: 1px solid transparent; transition: background .12s, border-color .12s;
+    gap: 8px;
+  }
+  .wl-item:hover { background: var(--bg-hover); }
+  .wl-item.active { background: var(--accent-soft); border-color: rgba(232,163,61,0.25); }
+  .wl-item .wl-sym { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--text); flex-shrink: 0; }
+  .wl-item.active .wl-sym { color: var(--accent); }
+  .wl-item .wl-name { font-size: 11px; color: var(--text-faint); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wl-item .wl-chg { font-family: 'IBM Plex Mono', monospace; font-size: 12px; flex-shrink: 0; }
+  .wl-item .wl-chg.up { color: var(--positive); }
+  .wl-item .wl-chg.down { color: var(--negative); }
+  .wl-add {
+    display: flex; align-items: center; gap: 6px; padding: 7px 10px;
+    border: 1px dashed var(--border); border-radius: var(--radius-sm);
+    color: var(--text-faint); font-size: 12px; cursor: pointer; background: none;
+    width: 100%; text-align: left; transition: border-color .15s, color .15s;
+  }
+  .wl-add:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Profile & settings */
+  .sidebar-section { display: flex; flex-direction: column; gap: 8px; }
+  .sidebar-section .lbl { font-size: 11px; color: var(--text-faint); font-weight: 500; padding: 0 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .segmented { display: flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+  .segmented button {
+    flex: 1; background: var(--bg-raised); color: var(--text-dim); border: none;
+    padding: 8px 10px; font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; cursor: pointer;
+    border-right: 1px solid var(--border); transition: background .12s, color .12s;
+  }
+  .segmented button:last-child { border-right: none; }
+  .segmented button.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .segmented button:hover:not(.active) { color: var(--text); }
+
+  select {
+    width: 100%; background: var(--bg-raised); color: var(--text-dim); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px 10px; font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px; cursor: pointer;
+  }
+  select:focus { outline: none; border-color: var(--accent); }
+
+  .run-btn {
+    background: var(--accent); color: #1A1204; border: none; border-radius: var(--radius-sm);
+    padding: 11px 16px; font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 700;
+    cursor: pointer; width: 100%; transition: filter .15s, transform .1s;
+    letter-spacing: 0.01em;
+  }
+  .run-btn:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+  .run-btn:active:not(:disabled) { transform: translateY(0); }
+  .run-btn:disabled { opacity: 0.5; cursor: default; filter: none; transform: none; }
+
+  .sidebar-footer { margin-top: auto; font-size: 11px; color: var(--text-faint); padding: 0 4px; line-height: 1.4; }
+
+  /* ── Main content ────────────────────────────────────────────────────────── */
+  .main { padding: 28px 28px 60px; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+
+  /* ── Error banner ────────────────────────────────────────────────────────── */
+  .error-banner {
+    display: none; gap: 10px; align-items: flex-start;
+    background: rgba(201,112,94,0.1); border: 1px solid rgba(201,112,94,0.3);
+    border-radius: var(--radius); padding: 12px 14px; font-size: 13px; color: #E3A99C;
+  }
+  .error-banner.visible { display: flex; }
+
+  /* ── Ticker strip ────────────────────────────────────────────────────────── */
+  .ticker {
+    background: var(--bg-panel); border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg); padding: 20px 24px;
+    display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+    box-shadow: var(--shadow);
+  }
+  .ticker-left { display: flex; flex-direction: column; gap: 3px; }
+  .ticker-sym { font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 700; }
+  .ticker-name { font-size: 12.5px; color: var(--text-faint); }
+  .ticker-badge {
+    display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 20px;
+    background: var(--accent-soft); color: var(--accent); font-weight: 600; letter-spacing: 0.04em;
+    margin-left: 8px; vertical-align: middle;
+  }
+  .ticker-mid { display: flex; align-items: baseline; gap: 12px; }
+  .ticker-px { font-size: 30px; font-weight: 600; }
+  .ticker-chg { font-size: 14px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+  .ticker-chg.up   { color: var(--positive); background: var(--positive-soft); }
+  .ticker-chg.down { color: var(--negative); background: var(--negative-soft); }
+  .ticker-meta { display: flex; gap: 18px; flex-wrap: wrap; }
+  .ticker-meta .m { display: flex; flex-direction: column; gap: 1px; }
+  .ticker-meta .m .l { font-size: 10.5px; color: var(--text-faint); }
+  .ticker-meta .m .v { font-size: 13px; font-weight: 500; }
+  .spark-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .data-src { font-size: 10px; color: var(--text-faint); }
+
+  /* ── Section labels ──────────────────────────────────────────────────────── */
+  .section-label { font-size: 11.5px; color: var(--text-faint); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; margin: 0; }
+
+  /* ── Signal cards ────────────────────────────────────────────────────────── */
+  .signals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .signal-card {
+    background: var(--bg-panel); border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm); padding: 16px; border-left: 3px solid var(--border);
+    min-height: 170px; display: flex; flex-direction: column; gap: 10px;
+    transition: border-left-color .2s;
+  }
+  .signal-card[data-kind="technical"]   { border-left-color: var(--blue); }
+  .signal-card[data-kind="sentiment"]   { border-left-color: var(--purple); }
+  .signal-card[data-kind="fundamentals"]{ border-left-color: var(--gold); }
+  .signal-card .top { display: flex; align-items: center; justify-content: space-between; }
+  .signal-card .agent-name { font-size: 12px; color: var(--text-faint); }
+  .label-pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; transition: all .2s; }
+  .label-pill.Bullish     { color: var(--positive); background: var(--positive-soft); }
+  .label-pill.Bearish     { color: var(--negative); background: var(--negative-soft); }
+  .label-pill.Neutral     { color: var(--neutral);  background: rgba(184,169,138,0.12); }
+  .label-pill.Unavailable { color: var(--text-faint); background: rgba(255,255,255,0.05); }
+  .conf-row { display: flex; align-items: center; gap: 8px; }
+  .conf-bar { flex: 1; height: 4px; background: var(--bg-raised); border-radius: 3px; overflow: hidden; }
+  .conf-bar > div { height: 100%; background: var(--accent); border-radius: 3px; transition: width .5s ease; }
+  .conf-num { font-size: 12px; color: var(--text-dim); min-width: 32px; text-align: right; }
+  .reasoning { font-size: 13px; color: var(--text-dim); flex: 1; line-height: 1.5; }
+  .citations { display: flex; flex-wrap: wrap; gap: 5px; }
+  .citations span {
+    font-size: 11px; color: var(--accent); background: var(--accent-soft);
+    padding: 2px 7px; border-radius: 4px; font-family: 'IBM Plex Mono', monospace;
+    cursor: default;
+  }
+  .latency { font-size: 11px; color: var(--text-faint); }
+
+  /* skeleton shimmer */
+  @keyframes shimmer {
+    0%   { opacity: 0.4; }
+    50%  { opacity: 0.7; }
+    100% { opacity: 0.4; }
+  }
+  .skeleton .reasoning, .skeleton .latency { animation: shimmer 1.4s ease-in-out infinite; }
+
+  /* ── Synthesis hero ──────────────────────────────────────────────────────── */
+  .synthesis {
+    background: linear-gradient(160deg, rgba(232,163,61,0.06) 0%, transparent 50%), var(--bg-panel);
+    border: 1px solid rgba(232,163,61,0.3); border-radius: var(--radius-lg);
+    padding: 24px 28px; box-shadow: 0 0 40px rgba(232,163,61,0.04);
+  }
+  .synthesis .s-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+  .synthesis .s-head h2 { font-size: 13px; color: var(--text-faint); font-weight: 500; }
+  .rec-row { display: flex; align-items: baseline; gap: 20px; flex-wrap: wrap; margin-bottom: 14px; }
+  .rec-badge { font-family: 'Space Grotesk', sans-serif; font-size: 38px; font-weight: 700; line-height: 1; }
+  .rec-badge.Buy    { color: var(--positive); }
+  .rec-badge.Reduce { color: var(--negative); }
+  .rec-badge.Avoid  { color: var(--negative); }
+  .rec-badge.Hold   { color: var(--neutral); }
+  .rec-meta { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-end; }
+  .rec-meta .m { display: flex; flex-direction: column; gap: 2px; }
+  .rec-meta .m .l { font-size: 11px; color: var(--text-faint); }
+  .rec-meta .m .v { font-size: 16px; font-weight: 600; }
+  .synthesis .s-reasoning { font-size: 14.5px; color: var(--text); max-width: 80ch; line-height: 1.65; }
+  .degraded-banner {
+    display: flex; gap: 9px; align-items: flex-start;
+    background: rgba(201,112,94,0.1); border: 1px solid rgba(201,112,94,0.3);
+    border-radius: var(--radius-sm); padding: 11px 13px; margin-bottom: 14px;
+    font-size: 13px; color: #E3A99C; line-height: 1.5;
+  }
+  .empty-hero { color: var(--text-faint); font-size: 14px; }
+
+  /* ── Lower panels ────────────────────────────────────────────────────────── */
+  .lower { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .panel {
+    background: var(--bg-panel); border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm); padding: 16px 18px;
+  }
+  .panel h3 { font-size: 12.5px; margin-bottom: 12px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: left; color: var(--text-faint); font-weight: 500; padding: 5px 6px; border-bottom: 1px solid var(--border-soft); }
+  td { padding: 6px 6px; border-bottom: 1px solid var(--border-soft); color: var(--text-dim); }
+  tr:last-child td { border-bottom: none; }
+  .active-row td { color: var(--accent) !important; font-weight: 600; }
+  .conc-line { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-soft); font-size: 13px; }
+  .conc-badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; }
+  .conc-badge.Low      { color: var(--positive); background: var(--positive-soft); }
+  .conc-badge.Moderate { color: var(--accent);   background: var(--accent-soft); }
+  .conc-badge.High     { color: var(--negative); background: var(--negative-soft); }
+
+  /* ── Toast ───────────────────────────────────────────────────────────────── */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 999;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 16px; font-size: 13px;
+    color: var(--text-dim); box-shadow: var(--shadow);
+    transform: translateY(8px); opacity: 0;
+    transition: opacity .2s, transform .2s; pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+
+  /* ── Responsive ──────────────────────────────────────────────────────────── */
+  @media (max-width: 1024px) {
+    .app { grid-template-columns: 220px 1fr; }
+    .signals { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border-soft); }
+    .lower { grid-template-columns: 1fr; }
+    .main { padding: 20px 16px 40px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <h1><span class="mark">Paridhi</span></h1>
+      <p>Multi-agent market research desk with live data.</p>
+    </div>
+
+    <!-- Ticker search -->
+    <div class="search-wrap">
+      <input type="text" id="tickerInput" placeholder="Search ticker (e.g. AAPL, RELIANCE.NS)" autocomplete="off" spellcheck="false">
+      <button class="search-go" id="goBtn" title="Analyze this ticker">GO</button>
+    </div>
+
+    <!-- Watchlist -->
+    <div>
+      <p class="watchlist-label">Watchlist</p>
+      <div class="watchlist" id="watchlist"></div>
+      <button class="wl-add" id="wlAddBtn">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Add current ticker
+      </button>
+    </div>
+
+    <!-- Risk profile -->
+    <div class="sidebar-section">
+      <p class="lbl">Risk profile</p>
+      <div class="segmented" id="profileSwitch">
+        <button data-profile="conservative" class="active">Conservative</button>
+        <button data-profile="aggressive">Aggressive</button>
+      </div>
+    </div>
+
+    <!-- Outage sim -->
+    <div class="sidebar-section">
+      <p class="lbl">Simulate outage</p>
+      <select id="outageSelect" title="Simulate a degraded data scenario">
+        <option value="none">No outage</option>
+        <option value="technical">Market feed down</option>
+        <option value="sentiment">News feed down</option>
+        <option value="fundamentals">Filings corpus down</option>
+      </select>
+    </div>
+
+    <!-- Run button -->
+    <button class="run-btn" id="runBtn">▶ Run Analysis</button>
+
+    <div class="sidebar-footer">
+      Live data via Yahoo Finance &amp; Finnhub.<br>
+      Claude agents run server-side — API keys never leave the server.<br><br>
+      Nothing here is financial advice.
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════ MAIN ═══════════════════════ -->
+  <main class="main">
+
+    <!-- Error banner -->
+    <div class="error-banner" id="errorBanner">
+      <span>⚠</span>
+      <span id="errorMsg">Something went wrong.</span>
+    </div>
+
+    <!-- Ticker strip -->
+    <div class="ticker" id="tickerStrip">
+      <div class="ticker-left">
+        <span class="ticker-sym" id="tSym">—</span>
+        <span class="ticker-name" id="tName">Enter a ticker and run analysis</span>
+      </div>
+      <div class="ticker-mid">
+        <span class="ticker-px num" id="tPx">—</span>
+        <span class="ticker-chg num" id="tChg">—</span>
+      </div>
+      <div class="ticker-meta" id="tMeta"></div>
+      <div class="spark-wrap">
+        <svg id="sparkline" width="200" height="50" viewBox="0 0 200 50"></svg>
+        <span class="data-src" id="dataSrc"></span>
+      </div>
+    </div>
+
+    <!-- Signal agents -->
+    <p class="section-label">Signal agents — parallel</p>
+    <div class="signals" id="signalGrid">
+      <div class="signal-card" data-kind="technical">
+        <div class="top"><span class="agent-name">Technical / Momentum</span><span class="label-pill Neutral">—</span></div>
+        <div class="conf-row"><div class="conf-bar"><div style="width:0%"></div></div><span class="conf-num">—</span></div>
+        <div class="reasoning">Run analysis to generate a signal.</div>
+        <div class="latency"></div>
+      </div>
+      <div class="signal-card" data-kind="sentiment">
+        <div class="top"><span class="agent-name">Sentiment / News</span><span class="label-pill Neutral">—</span></div>
+        <div class="conf-row"><div class="conf-bar"><div style="width:0%"></div></div><span class="conf-num">—</span></div>
+        <div class="reasoning">Run analysis to generate a signal.</div>
+        <div class="latency"></div>
+      </div>
+      <div class="signal-card" data-kind="fundamentals">
+        <div class="top"><span class="agent-name">Fundamentals (RAG)</span><span class="label-pill Neutral">—</span></div>
+        <div class="conf-row"><div class="conf-bar"><div style="width:0%"></div></div><span class="conf-num">—</span></div>
+        <div class="reasoning">Run analysis to generate a signal.</div>
+        <div class="citations"></div>
+        <div class="latency"></div>
+      </div>
+    </div>
+
+    <!-- Synthesis -->
+    <p class="section-label">Synthesized recommendation</p>
+    <div class="synthesis" id="synthesisPanel">
+      <div class="s-head"><h2 id="profileNote">Personalized for: Conservative profile</h2></div>
+      <p class="empty-hero">Run an analysis to see a recommendation synthesized across all three agents, weighted for your risk profile.</p>
+    </div>
+
+    <!-- Lower panels -->
+    <div class="lower">
+      <div class="panel">
+        <h3>Watchlist &amp; portfolio</h3>
+        <table>
+          <thead><tr><th>Name / Ticker</th><th>Alloc %</th><th>Status</th></tr></thead>
+          <tbody id="holdingsBody"><tr><td colspan="3" style="color:var(--text-faint)">Add tickers to your watchlist.</td></tr></tbody>
+        </table>
+        <div class="conc-line">
+          <span>Concentration (HHI)</span>
+          <span><span class="num" id="hhiVal">—</span> <span class="conc-badge" id="hhiBadge"></span></span>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Session metrics log</h3>
+        <table>
+          <thead><tr><th>Run</th><th>Symbol</th><th>Latency</th><th>Confidence</th></tr></thead>
+          <tbody id="metricsBody"><tr><td colspan="4" style="color:var(--text-faint)">No runs yet.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════
+let activeProfile = "conservative";
+let activeTicker  = "";
+let runCount      = 0;
+
+// Watchlist: array of { symbol, name, alloc, liveChg }
+let watchlist = JSON.parse(localStorage.getItem("paridhi_watchlist") || "[]");
+
+// ════════════════════════════════════════════════════════════
+//  PROFILE DEFINITIONS
+// ════════════════════════════════════════════════════════════
+const PROFILES = {
+  conservative: {
+    label: "Conservative", riskTolerance: "Low", maxPositionPct: 5,
+    minConfidenceToAct: 70, horizon: "Long-term (3+ years)",
+    note: "Prioritises capital preservation; prefers Hold/Avoid absent high-confidence, well-grounded signals."
+  },
+  aggressive: {
+    label: "Aggressive", riskTolerance: "High", maxPositionPct: 20,
+    minConfidenceToAct: 40, horizon: "Short-term (weeks)",
+    note: "Comfortable acting on momentum and sentiment signals at moderate confidence."
+  }
+};
+
+// ════════════════════════════════════════════════════════════
+//  AGENT SYSTEM PROMPTS
+// ════════════════════════════════════════════════════════════
+const TECH_SYSTEM = `You are a technical/momentum analysis agent inside a multi-agent retail investor research system.
+You will be given computed price/volume statistics for a real stock.
+Classify the technical signal based strictly on the provided numbers.
+Respond with ONLY valid JSON, no markdown fences, no other text:
+{"label":"Bullish"|"Bearish"|"Neutral","confidence":<integer 0-100>,"reasoning":"<1-2 sentences that reference the actual numbers given>"}`;
+
+const SENT_SYSTEM = `You are a sentiment analysis agent inside a multi-agent retail investor research system.
+You will be given recent headlines fetched from a live news source for a specific stock ticker.
+Classify aggregate sentiment based strictly on the provided headlines.
+Respond with ONLY valid JSON, no markdown fences, no other text:
+{"label":"Bullish"|"Bearish"|"Neutral","confidence":<integer 0-100>,"reasoning":"<1-2 sentences referencing the headlines>"}`;
+
+const FUND_SYSTEM = `You are a fundamentals research agent inside a multi-agent retail investor research system.
+You will be given a stock ticker and a set of retrieved filing/earnings-call snippets, each with an id.
+Base your signal ONLY on the retrieved snippets provided — do not invent facts beyond them.
+In "reasoning", explicitly reference which snippet(s) support each point.
+In "citedIds", list the ids of every snippet you actually relied on (must be a subset of the ids you were given; empty array only if no snippets were provided).
+Respond with ONLY valid JSON, no markdown fences, no other text:
+{"label":"Bullish"|"Bearish"|"Neutral","confidence":<integer 0-100>,"reasoning":"<2-3 sentences on fundamentals, referencing snippet ids>","citedIds":["<id>", "..."]}`;
+
+const SYNTH_SYSTEM = `You are the synthesis agent in a multi-agent retail investor research system.
+You receive outputs from three specialist agents (technical, sentiment, fundamentals) plus a user's risk profile, and must produce ONE final research view.
+If an agent's status is "unavailable", explicitly acknowledge the gap and reduce confidence accordingly — do NOT fabricate a value.
+Conservative profile: weight fundamentals and downside risk more heavily; need stronger combined confidence to recommend Buy.
+Aggressive profile: weight technical/sentiment momentum; can act on lower confidence.
+Respond with ONLY valid JSON, no markdown fences, no other text:
+{"recommendation":"Buy"|"Hold"|"Reduce"|"Avoid","confidence":<integer 0-100>,"suggestedPositionPct":<number>,"reasoning":"<3-4 sentences that reference the user's risk profile and how it shaped this call>","degradedNote":<string or null>}`;
+
+// ── Consolidated single-call variant ────────────────────────────────────────
+// Combines Technical + Sentiment + Fundamentals + Synthesis into ONE Gemini
+// call instead of 4, to conserve free-tier daily quota (20 req/day on
+// gemini-3.6-flash — 4 calls/run exhausts it in 5 runs, which is a real risk
+// mid-demo). Functionally equivalent output; only the network layer changes.
+const ALL_IN_ONE_SYSTEM = `You are a multi-agent retail investor research system, acting as FOUR specialist roles in a single response: technical, sentiment, fundamentals, and synthesis.
+
+You will receive an object with:
+- "stats": computed price/volume statistics (or null if the technical/market data feed is marked unavailable)
+- "headlines": recent news headlines array (or empty if the sentiment/news feed is marked unavailable)
+- "retrievedSnippets": retrieved filing/earnings-call snippets with ids (or empty if the filings corpus is marked unavailable)
+- "profile": the user's risk profile object
+
+Rules:
+- If "stats" is null, technical.status must be "unavailable" and technical.confidence must be 0 — do not fabricate a technical signal.
+- If "headlines" is empty, sentiment.status must be "unavailable" and sentiment.confidence must be 0.
+- If "retrievedSnippets" is empty, fundamentals.status must be "unavailable" and fundamentals.confidence must be 0.
+- Otherwise status is "ok" for that section.
+- fundamentals.citedIds must only contain ids that appear in retrievedSnippets, and reasoning must reference them.
+- synthesis.degradedNote must explicitly name which agent(s), if any, were unavailable and why confidence was reduced.
+- Conservative profile: weight fundamentals and downside risk more heavily; need stronger combined confidence to recommend Buy.
+- Aggressive profile: weight technical/sentiment momentum; can act on lower confidence.
+
+Respond with ONLY valid JSON, no markdown fences, no other text, in exactly this shape:
+{
+  "technical":    {"label":"Bullish"|"Bearish"|"Neutral","confidence":<0-100>,"reasoning":"<1-2 sentences referencing the actual numbers>","status":"ok"|"unavailable"},
+  "sentiment":    {"label":"Bullish"|"Bearish"|"Neutral","confidence":<0-100>,"reasoning":"<1-2 sentences referencing headlines>","status":"ok"|"unavailable"},
+  "fundamentals": {"label":"Bullish"|"Bearish"|"Neutral","confidence":<0-100>,"reasoning":"<2-3 sentences referencing snippet ids>","citedIds":[<string ids>],"status":"ok"|"unavailable"},
+  "synthesis":    {"recommendation":"Buy"|"Hold"|"Reduce"|"Avoid","confidence":<0-100>,"suggestedPositionPct":<number>,"reasoning":"<3-4 sentences referencing the risk profile>","degradedNote":<string or null>}
+}`;
+
+// ════════════════════════════════════════════════════════════
+//  API HELPERS
+// ════════════════════════════════════════════════════════════
+
+/** Call our own backend Claude proxy */
+async function callClaude(system, userContent) {
+  const res = await fetch("/api/claude", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ system, userContent }),
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "Claude proxy error");
+  return data.result;
+}
+
+/** Fetch live price/stats from our backend */
+async function fetchStock(symbol) {
+  const res = await fetch(`/api/stock/${encodeURIComponent(symbol)}?range=30`);
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "Stock data fetch failed");
+  return data;
+}
+
+/** Fetch live news headlines from our backend */
+async function fetchNews(symbol) {
+  const res = await fetch(`/api/news/${encodeURIComponent(symbol)}`);
+  const data = await res.json();
+  if (!data.ok) {
+    console.warn("News fetch failed:", data.error);
+    return { headlines: [] };
+  }
+  return data;
+}
+
+function unavailable(reason) {
+  return { label: "Unavailable", confidence: 0, reasoning: reason, status: "unavailable", latency: 0, citedIds: [] };
+}
+
+// ════════════════════════════════════════════════════════════
+//  AGENTS
+// ════════════════════════════════════════════════════════════
+
+async function runTechnical(stats, killed) {
+  if (killed) return unavailable("Market data feed simulated outage — no signal generated.");
+  const t0 = performance.now();
+  try {
+    const out = await callClaude(TECH_SYSTEM, JSON.stringify(stats));
+    return { ...out, status: "ok", latency: Math.round(performance.now() - t0) };
+  } catch (e) {
+    return { ...unavailable("Technical agent error: " + e.message), latency: Math.round(performance.now() - t0) };
+  }
+}
+
+async function runSentiment(headlines, killed) {
+  if (killed) return unavailable("News/sentiment feed simulated outage — no signal generated.");
+  const t0 = performance.now();
+  try {
+    const out = await callClaude(SENT_SYSTEM, JSON.stringify({ headlines }));
+    return { ...out, status: "ok", latency: Math.round(performance.now() - t0) };
+  } catch (e) {
+    return { ...unavailable("Sentiment agent error: " + e.message), latency: Math.round(performance.now() - t0) };
+  }
+}
+
+/** Retrieve filing snippets from our backend corpus (RAG retrieval step) */
+let lastSnippetMap = {}; // id -> text, for citation tooltips
+
+async function fetchFilings(symbol) {
+  const res = await fetch(`/api/filings/${encodeURIComponent(symbol)}`);
+  const data = await res.json();
+  if (!data.ok) return { snippets: [] };
+  lastSnippetMap = {};
+  (data.snippets || []).forEach(s => { lastSnippetMap[s.id] = s.text; });
+  return data;
+}
+
+async function runFundamentals(symbol, killed) {
+  if (killed) return unavailable("Filings corpus simulated outage — retrieval unavailable.");
+  const t0 = performance.now();
+  try {
+    const { snippets } = await fetchFilings(symbol);
+    if (!snippets || snippets.length === 0) {
+      return { ...unavailable("No filing snippets retrieved for this ticker — cannot ground a fundamentals signal."), latency: Math.round(performance.now() - t0) };
+    }
+    const out = await callClaude(FUND_SYSTEM, JSON.stringify({ symbol, retrievedSnippets: snippets }));
+    return { ...out, status: "ok", latency: Math.round(performance.now() - t0) };
+  } catch (e) {
+    return { ...unavailable("Fundamentals agent error: " + e.message), latency: Math.round(performance.now() - t0) };
+  }
+}
+
+async function runSynthesis(agentOutputs, profile) {
+  const t0 = performance.now();
+  try {
+    const out = await callClaude(SYNTH_SYSTEM, JSON.stringify({ agents: agentOutputs, profile }));
+    return { ...out, status: "ok", latency: Math.round(performance.now() - t0) };
+  } catch (e) {
+    return {
+      recommendation: "Hold", confidence: 0, suggestedPositionPct: 0,
+      reasoning: "Synthesis unavailable due to an error. Please retry.",
+      degradedNote: e.message, status: "unavailable",
+      latency: Math.round(performance.now() - t0),
+    };
+  }
+}
+
+/**
+ * Consolidated path: 1 Gemini call instead of 4 (technical + sentiment +
+ * fundamentals + synthesis combined). Use this instead of the four
+ * separate run* functions to conserve free-tier daily request quota.
+ * Returns { tech, sent, fund, synth } in the same shape the renderers expect.
+ */
+async function runAllInOne(stats, headlines, snippets, profile, outageChoice) {
+  const t0 = performance.now();
+  const payload = {
+    stats:             outageChoice === "technical"    ? null : stats,
+    headlines:         outageChoice === "sentiment"    ? []   : (headlines || []),
+    retrievedSnippets: outageChoice === "fundamentals"  ? []   : (snippets  || []),
+    profile,
+  };
+
+  try {
+    const out = await callClaude(ALL_IN_ONE_SYSTEM, JSON.stringify(payload));
+    const latency = Math.round(performance.now() - t0);
+
+    const withMeta = (section, extra = {}) => ({
+      ...section,
+      latency,
+      status: section.status || "ok",
+      ...extra,
+    });
+
+    const tech  = withMeta(out.technical);
+    const sent  = withMeta(out.sentiment);
+    const fund  = withMeta(out.fundamentals, { citedIds: out.fundamentals?.citedIds || [] });
+    const synth = { ...out.synthesis, status: "ok", latency };
+
+    return { tech, sent, fund, synth };
+  } catch (e) {
+    const latency = Math.round(performance.now() - t0);
+    const failed = unavailable("Combined agent call failed: " + e.message);
+    return {
+      tech: { ...failed, latency }, sent: { ...failed, latency }, fund: { ...failed, latency },
+      synth: {
+        recommendation: "Hold", confidence: 0, suggestedPositionPct: 0,
+        reasoning: "Synthesis unavailable due to an error. Please retry.",
+        degradedNote: e.message, status: "unavailable", latency,
+      },
+    };
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  RENDERING
+// ════════════════════════════════════════════════════════════
+
+function renderTicker(stockData) {
+  const { symbol, name, exchange, currency, series } = stockData;
+  const currentPrice = stockData.stats?.currentPrice ?? stockData.currentPrice;
+  const pctChangeDay  = stockData.stats?.pctChangeDay ?? stockData.pctChangeDay ?? 0;
+  const up = pctChangeDay >= 0;
+
+  document.getElementById("tSym").textContent   = symbol;
+  document.getElementById("tName").innerHTML    = `${name} <span class="ticker-badge">${exchange || "LIVE"}</span>`;
+  document.getElementById("tPx").textContent    = formatPrice(currentPrice, currency);
+  const chgEl = document.getElementById("tChg");
+  chgEl.textContent  = (up ? "+" : "") + pctChangeDay.toFixed(2) + "%";
+  chgEl.className    = "ticker-chg num " + (up ? "up" : "down");
+
+  // Meta stats
+  const s = stockData.stats;
+  const meta = document.getElementById("tMeta");
+  meta.innerHTML = [
+    s?.rsiApprox  != null ? `<div class="m"><span class="l">RSI-14</span><span class="v num">${s.rsiApprox}</span></div>` : "",
+    s?.smaShort   != null ? `<div class="m"><span class="l">SMA-5</span><span class="v num">${formatPrice(s.smaShort, currency)}</span></div>` : "",
+    s?.smaLong    != null ? `<div class="m"><span class="l">SMA-20</span><span class="v num">${formatPrice(s.smaLong, currency)}</span></div>` : "",
+    s?.volumeZScore != null ? `<div class="m"><span class="l">Vol Z</span><span class="v num">${s.volumeZScore > 0 ? "+" : ""}${s.volumeZScore}</span></div>` : "",
+  ].join("");
+
+  // Sparkline
+  renderSparkline(series, up);
+  document.getElementById("dataSrc").textContent = "via " + (stockData.source === "alphavantage" ? "Alpha Vantage" : "Yahoo Finance");
+}
+
+function renderSparkline(series, up) {
+  const svg = document.getElementById("sparkline");
+  const prices = series.map(p => p.price);
+  if (prices.length < 2) { svg.innerHTML = ""; return; }
+  const min = Math.min(...prices), max = Math.max(...prices);
+  const w = 200, h = 50, pad = 4;
+  const pts = prices.map((p, i) => {
+    const x = pad + (i / (prices.length - 1)) * (w - pad * 2);
+    const y = h - pad - ((p - min) / (max - min || 1)) * (h - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  const color = up ? "#6FAE8B" : "#C9705E";
+  svg.innerHTML = `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>`;
+}
+
+function renderSignalCard(kind, data) {
+  const card = document.querySelector(`.signal-card[data-kind="${kind}"]`);
+  card.classList.remove("skeleton");
+  const pill = card.querySelector(".label-pill");
+  pill.textContent = data.label;
+  pill.className   = "label-pill " + data.label;
+  const bar = card.querySelector(".conf-bar > div");
+  bar.style.width  = data.confidence + "%";
+  card.querySelector(".conf-num").textContent   = data.confidence + "%";
+  card.querySelector(".reasoning").textContent  = data.reasoning;
+  const latEl = card.querySelector(".latency");
+  latEl.textContent = data.status === "unavailable" ? "Status: unavailable" : `Latency: ${data.latency}ms`;
+  const citeEl = card.querySelector(".citations");
+  if (citeEl) {
+    citeEl.innerHTML = "";
+    (data.citedIds || []).forEach(id => {
+      const s = document.createElement("span");
+      s.textContent = id;
+      if (lastSnippetMap[id]) s.title = lastSnippetMap[id];
+      citeEl.appendChild(s);
+    });
+  }
+}
+
+function setSkeleton() {
+  ["technical", "sentiment", "fundamentals"].forEach(kind => {
+    const card = document.querySelector(`.signal-card[data-kind="${kind}"]`);
+    card.classList.add("skeleton");
+    card.querySelector(".label-pill").textContent = "…";
+    card.querySelector(".label-pill").className   = "label-pill Neutral";
+    card.querySelector(".conf-bar > div").style.width = "0%";
+    card.querySelector(".conf-num").textContent   = "—";
+    card.querySelector(".reasoning").textContent  = "Fetching live data…";
+    card.querySelector(".latency").textContent    = "";
+    const c = card.querySelector(".citations");
+    if (c) c.innerHTML = "";
+  });
+}
+
+function renderSynthesis(synth, profile, outageChoice) {
+  const panel  = document.getElementById("synthesisPanel");
+  const degradedHtml = outageChoice !== "none"
+    ? `<div class="degraded-banner">⚠ Degraded mode: ${outageLabel(outageChoice)}. ${synth.degradedNote || "Synthesis proceeded without this signal."}</div>`
+    : "";
+  panel.innerHTML = `
+    <div class="s-head">
+      <h2 id="profileNote">Personalized for: ${profile.label} profile</h2>
+    </div>
+    ${degradedHtml}
+    <div class="rec-row">
+      <span class="rec-badge ${synth.recommendation}">${synth.recommendation}</span>
+      <div class="rec-meta">
+        <div class="m"><span class="l">Confidence</span><span class="v num">${synth.confidence}%</span></div>
+        <div class="m"><span class="l">Suggested position</span><span class="v num">${synth.suggestedPositionPct}% of portfolio</span></div>
+        <div class="m"><span class="l">Profile ceiling</span><span class="v num">${profile.maxPositionPct}% max</span></div>
+      </div>
+    </div>
+    <p class="s-reasoning">${synth.reasoning}</p>
+  `;
+}
+
+function outageLabel(c) {
+  return { technical: "market data feed unavailable", sentiment: "news/sentiment feed unavailable", fundamentals: "filings corpus unavailable" }[c] || "";
+}
+
+function renderWatchlist() {
+  const wlEl   = document.getElementById("watchlist");
+  const tbody  = document.getElementById("holdingsBody");
+
+  if (watchlist.length === 0) {
+    wlEl.innerHTML = `<div style="font-size:12px;color:var(--text-faint);padding:6px 10px;">No tickers added yet.</div>`;
+    tbody.innerHTML = `<tr><td colspan="3" style="color:var(--text-faint)">Add tickers to your watchlist.</td></tr>`;
+    document.getElementById("hhiVal").textContent = "—";
+    document.getElementById("hhiBadge").textContent = "";
+    return;
+  }
+
+  wlEl.innerHTML = watchlist.map((w, i) => {
+    const active  = w.symbol === activeTicker;
+    const chgTxt  = w.liveChg != null ? ((w.liveChg >= 0 ? "+" : "") + w.liveChg.toFixed(2) + "%") : "—";
+    const chgCls  = w.liveChg == null ? "" : (w.liveChg >= 0 ? "up" : "down");
+    return `<div class="wl-item ${active ? "active" : ""}" data-idx="${i}" role="button" tabindex="0">
+      <span class="wl-sym">${w.symbol}</span>
+      <span class="wl-name">${w.name || w.symbol}</span>
+      <span class="wl-chg ${chgCls}">${chgTxt}</span>
+    </div>`;
+  }).join("");
+
+  // Holdings table
+  tbody.innerHTML = watchlist.map((w, i) => {
+    const active = w.symbol === activeTicker;
+    return `<tr class="${active ? "active-row" : ""}">
+      <td>${w.name || w.symbol} <span style="font-family:monospace;font-size:11px;color:var(--text-faint)">${active ? "(analyzing)" : ""}</span></td>
+      <td class="num">${w.alloc ?? "—"}%</td>
+      <td style="font-size:11px;color:var(--text-faint)">${active ? "✓ Active" : ""}</td>
+    </tr>`;
+  }).join("");
+
+  // HHI
+  const withAlloc = watchlist.filter(w => w.alloc != null);
+  if (withAlloc.length > 0) {
+    const total = withAlloc.reduce((s, w) => s + w.alloc, 0);
+    const hhi   = withAlloc.reduce((s, w) => s + Math.pow(w.alloc / total, 2), 0) * 100;
+    document.getElementById("hhiVal").textContent = hhi.toFixed(1);
+    const level = hhi < 15 ? "Low" : hhi < 25 ? "Moderate" : "High";
+    const badge = document.getElementById("hhiBadge");
+    badge.textContent = level; badge.className = "conc-badge " + level;
+  }
+
+  // Clickable watchlist items
+  wlEl.querySelectorAll(".wl-item").forEach(el => {
+    const handler = () => {
+      const idx = parseInt(el.dataset.idx);
+      const sym = watchlist[idx].symbol;
+      document.getElementById("tickerInput").value = sym;
+      activeTicker = sym;
+      renderWatchlist();
+    };
+    el.addEventListener("click", handler);
+    el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") handler(); });
+  });
+}
+
+function appendMetric(symbol, latencyTotal, combinedConfidence) {
+  runCount++;
+  const body = document.getElementById("metricsBody");
+  if (runCount === 1) body.innerHTML = "";
+  const row = document.createElement("tr");
+  row.innerHTML = `
+    <td class="num">#${runCount}</td>
+    <td class="num" style="color:var(--accent)">${symbol}</td>
+    <td class="num">${latencyTotal}ms</td>
+    <td class="num">${combinedConfidence}%</td>
+  `;
+  body.prepend(row);
+  while (body.children.length > 8) body.removeChild(body.lastChild);
+}
+
+function formatPrice(price, currency) {
+  if (price == null) return "—";
+  const sym = currency === "INR" ? "₹" : currency === "USD" ? "$" : (currency || "") + " ";
+  return sym + price.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function showError(msg) {
+  const el = document.getElementById("errorBanner");
+  document.getElementById("errorMsg").textContent = msg;
+  el.classList.add("visible");
+  setTimeout(() => el.classList.remove("visible"), 8000);
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2800);
+}
+
+// ════════════════════════════════════════════════════════════
+//  MAIN RUN
+// ════════════════════════════════════════════════════════════
+
+async function runAnalysis() {
+  const rawInput = document.getElementById("tickerInput").value.trim().toUpperCase();
+  if (!rawInput) { showError("Please enter a ticker symbol first."); return; }
+
+  activeTicker = rawInput;
+  const outageChoice = document.getElementById("outageSelect").value;
+  const profile      = PROFILES[activeProfile];
+
+  const runBtn = document.getElementById("runBtn");
+  runBtn.disabled = true;
+  runBtn.textContent = "⏳ Running…";
+  setSkeleton();
+  document.getElementById("errorBanner").classList.remove("visible");
+
+  const overallStart = performance.now();
+
+  // ── 1. Fetch live market data ──────────────────────────────────────────────
+  let stockData, headlines;
+  try {
+    [stockData, { headlines }] = await Promise.all([
+      outageChoice === "technical" ? null : fetchStock(rawInput),
+      outageChoice === "sentiment" ? Promise.resolve({ headlines: [] }) : fetchNews(rawInput),
+    ]);
+    if (stockData) {
+      renderTicker(stockData);
+      // Update watchlist live change
+      const wIdx = watchlist.findIndex(w => w.symbol === rawInput);
+      if (wIdx >= 0) { watchlist[wIdx].liveChg = stockData.stats?.pctChangeDay ?? stockData.pctChangeDay ?? null; watchlist[wIdx].name = stockData.name; }
+      renderWatchlist();
+    }
+  } catch (err) {
+    showError(`Could not fetch data for "${rawInput}": ${err.message}`);
+    runBtn.disabled = false;
+    runBtn.textContent = "▶ Run Analysis";
+    return;
+  }
+
+  // ── 2. Retrieve filing snippets, then run all 4 agents in ONE Gemini call ──
+  const stats = stockData?.stats || null;
+  let snippets = [];
+  if (outageChoice !== "fundamentals") {
+    const filingsData = await fetchFilings(rawInput); // also populates lastSnippetMap for citation tooltips
+    snippets = filingsData.snippets || [];
+  } else {
+    lastSnippetMap = {};
+  }
+
+  const { tech, sent, fund, synth } = await runAllInOne(stats, headlines, snippets, profile, outageChoice);
+
+  renderSignalCard("technical",   tech);
+  renderSignalCard("sentiment",   sent);
+  renderSignalCard("fundamentals", fund);
+  renderSynthesis(synth, profile, outageChoice);
+
+  // ── 3. Metrics ────────────────────────────────────────────────────────────
+  const overallLatency = Math.round(performance.now() - overallStart);
+  const validConfs     = [tech, sent, fund].filter(a => a.status === "ok").map(a => a.confidence);
+  const combined       = validConfs.length ? Math.round(validConfs.reduce((a, b) => a + b, 0) / validConfs.length) : 0;
+  appendMetric(rawInput, overallLatency, combined);
+
+  runBtn.disabled = false;
+  runBtn.textContent = "▶ Run Analysis";
+}
+
+// ════════════════════════════════════════════════════════════
+//  WIRING
+// ════════════════════════════════════════════════════════════
+
+document.getElementById("runBtn").addEventListener("click", runAnalysis);
+
+document.getElementById("goBtn").addEventListener("click", () => {
+  const sym = document.getElementById("tickerInput").value.trim().toUpperCase();
+  if (sym) { activeTicker = sym; runAnalysis(); }
+});
+
+document.getElementById("tickerInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    const sym = e.target.value.trim().toUpperCase();
+    if (sym) { activeTicker = sym; runAnalysis(); }
+  }
+});
+
+document.getElementById("profileSwitch").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-profile]");
+  if (!btn) return;
+  document.querySelectorAll("#profileSwitch button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  activeProfile = btn.dataset.profile;
+  const pNote = document.getElementById("profileNote");
+  if (pNote) pNote.textContent = "Personalized for: " + PROFILES[activeProfile].label + " profile";
+});
+
+document.getElementById("wlAddBtn").addEventListener("click", () => {
+  const sym = (document.getElementById("tickerInput").value || activeTicker).trim().toUpperCase();
+  if (!sym) { showError("Type a ticker first, then click Add."); return; }
+  if (watchlist.find(w => w.symbol === sym)) { showToast(`${sym} is already in your watchlist.`); return; }
+  if (watchlist.length >= 10) { showError("Watchlist is full (max 10 tickers)."); return; }
+
+  const alloc = watchlist.length === 0 ? 100 : null;
+  watchlist.push({ symbol: sym, name: sym, alloc, liveChg: null });
+  localStorage.setItem("paridhi_watchlist", JSON.stringify(watchlist));
+  renderWatchlist();
+  showToast(`${sym} added to watchlist.`);
+});
+
+// Init
+renderWatchlist();
+</script>
+</body>
+</html>

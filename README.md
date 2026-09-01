@@ -540,6 +540,10 @@ Express Server
 > **Note:** The route name `claude.js` is retained from the original project structure even though the current AI provider is Gemini.
 
 ---
+*Screenshots of our working website <img width="1905" height="900" alt="Screenshot 2026-09-01 154254" src="https://github.com/user-attachments/assets/9750da3f-7472-43eb-9eca-970c1125db99" />
+*<img width="1901" height="903" alt="Screenshot 2026-09-01 154308" src="https://github.com/user-attachments/assets/42da4b86-6410-42ea-bfb3-217bcdd142c9" />
+
+
 
 # 🔐 Security Considerations
 

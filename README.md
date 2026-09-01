@@ -1,7 +1,3 @@
-Absolutely — your current README has a few broken Markdown artifacts (`[cite: ...]`, malformed links, escaped Markdown, duplicated code fences). Here’s a **clean, professional GitHub-ready version**.
-
-Copy **everything inside this code block** directly into `README.md`:
-
 ````markdown
 # ⚡ PARIDHI — Multi-Agent Market Intelligence Desk
 

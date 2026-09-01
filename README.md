@@ -15,7 +15,7 @@ Copy **everything inside this code block** directly into `README.md`:
 ---
 
 ## 📌 Overview
-
+;
 **Paridhi** is a high-throughput, multi-agent market intelligence and equity research platform designed to reduce information asymmetry for retail investors.
 
 Instead of relying on a single LLM prompt, Paridhi uses a **parallel pipeline of specialized AI agents** to independently analyze a stock across:

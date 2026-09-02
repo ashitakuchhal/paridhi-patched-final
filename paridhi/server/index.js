@@ -35,7 +35,9 @@ app.get("*", (_req, res) => {
 // ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n  🟢 Paridhi server running → http://localhost:${PORT}\n`);
-  if (!process.env.GEMINI_API_KEY)       console.warn("  ⚠  GEMINI_API_KEY not set in .env — agents will fail. Get one free at https://aistudio.google.com/apikey");
-  if (!process.env.FINNHUB_API_KEY)      console.warn("  ⚠  FINNHUB_API_KEY not set in .env (news will fall back to RSS)");
+  if (!process.env.GEMINI_API_KEY) console.warn("  ⚠  GEMINI_API_KEY not set in .env — agents will fail. Get one free at https://aistudio.google.com/apikey");
+  if (!process.env.FINNHUB_API_KEY) console.warn("  ⚠  FINNHUB_API_KEY not set in .env (news will fall back to RSS)");
   if (!process.env.ALPHA_VANTAGE_API_KEY) console.warn("  ⚠  ALPHA_VANTAGE_API_KEY not set in .env (price will use Yahoo only)");
 });
+// Add this at the bottom of server/index.js
+module.exports = app;

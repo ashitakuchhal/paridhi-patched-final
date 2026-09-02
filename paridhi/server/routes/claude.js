@@ -39,7 +39,7 @@ router.post("/", async (req, res) => {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
     const geminiModel = genAI.getGenerativeModel({
-      model: model || "gemini-1.5-flash",   // Best free model — fast + accurate
+      model: model || "gemini-3.6-flash",   // Best free model — fast + accurate
       systemInstruction: system,             // System prompt goes here in Gemini SDK
       generationConfig: {
         temperature: 0.2,                    // Low temp = more consistent JSON output

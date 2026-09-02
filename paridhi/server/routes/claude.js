@@ -17,7 +17,15 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const router = express.Router();
 
-// ── POST /api/claude  (endpoint name kept for backwards compat with frontend) ──
+// Helper to enforce a maximum wait time (15 seconds) so Vercel never hangs forever
+const fetchWithTimeout = (promise, ms = 15000) => {
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("Gemini API request timed out")), ms)
+  );
+  return Promise.race([promise, timeout]);
+};
+
+// ── POST /api/claude ──
 router.post("/", async (req, res) => {
   const { system, userContent, model } = req.body;
 
@@ -31,46 +39,49 @@ router.post("/", async (req, res) => {
   if (!process.env.GEMINI_API_KEY) {
     return res.status(503).json({
       ok: false,
-      error: "GEMINI_API_KEY is not configured. Add it to your .env file. Get a free key at https://aistudio.google.com/apikey",
+      error: "GEMINI_API_KEY is not configured on Vercel environment variables.",
     });
   }
 
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+    // Use a stable fallback model name
+    const targetModel = model || "gemini-2.5-flash";
+
     const geminiModel = genAI.getGenerativeModel({
-      model: model || "gemini-3.6-flash",   // Best free model — fast + accurate
-      systemInstruction: system,             // System prompt goes here in Gemini SDK
+      model: targetModel,
+      systemInstruction: system,
       generationConfig: {
-        temperature: 0.2,                    // Low temp = more consistent JSON output
+        temperature: 0.2,
         maxOutputTokens: 8192,
-        responseMimeType: "application/json", // Ask Gemini to return JSON directly
+        responseMimeType: "application/json",
       },
     });
 
-    const result = await geminiModel.generateContent(userContent);
+    // Execute API call wrapped in the 15s timeout safeguard
+    const result = await fetchWithTimeout(geminiModel.generateContent(userContent));
     const rawText = result.response.text().trim();
-
-    // Strip any accidental markdown fences (shouldn't happen with responseMimeType,
-    // but good to be defensive)
-    const clean = rawText.replace(/```json|```/g, "").trim();
 
     let parsed;
     try {
-      parsed = JSON.parse(clean);
+      parsed = JSON.parse(rawText);
     } catch (_) {
-      // Try to pull out a JSON object/array from inside the text
+      // Clean up markdown fences if fallback parsing is required
+      const clean = rawText.replace(/```json|```/g, "").trim();
       const match = clean.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
       if (match) {
         parsed = JSON.parse(match[1]);
       } else {
-        throw new Error(`Model returned non-JSON text: ${clean.slice(0, 300)}`);
+        throw new Error(`Model returned non-JSON text: ${clean.slice(0, 150)}`);
       }
     }
 
     return res.json({ ok: true, result: parsed });
   } catch (err) {
     console.error("[gemini] Error:", err.message);
+
+    // Always respond with JSON so frontend stops showing loading/fetching states
     return res.status(500).json({
       ok: false,
       error: err.message || "Unknown error from Gemini API",

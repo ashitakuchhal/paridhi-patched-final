@@ -14,9 +14,31 @@ const { retrieveFilings } = require("../lib/corpus");
 const router = express.Router();
 
 router.get("/:symbol", (req, res) => {
-  const symbol = req.params.symbol.toUpperCase().trim();
-  const snippets = retrieveFilings(symbol, 3);
-  res.json({ ok: true, symbol, snippets });
+  try {
+    const rawSymbol = req.params.symbol;
+
+    if (!rawSymbol || typeof rawSymbol !== "string") {
+      return res.status(400).json({
+        ok: false,
+        error: "Valid stock symbol parameter is required.",
+      });
+    }
+
+    const symbol = rawSymbol.toUpperCase().trim();
+
+    // Retrieve filings safely
+    const snippets = retrieveFilings(symbol, 3) || [];
+
+    return res.json({ ok: true, symbol, snippets });
+  } catch (err) {
+    console.error(`[filings] Error retrieving filings for ${req.params.symbol}:`, err.message);
+
+    // Prevents the request from hanging on Vercel if corpus retrieval fails
+    return res.status(500).json({
+      ok: false,
+      error: err.message || "Failed to retrieve SEC filings context.",
+    });
+  }
 });
 
 module.exports = router;

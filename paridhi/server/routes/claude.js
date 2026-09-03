@@ -47,7 +47,7 @@ router.post("/", async (req, res) => {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
     // Use a stable fallback model name
-    const targetModel = model || "gemini-3.6-flash";
+    const targetModel = model || "gemini-2.5-flash-lite";
 
     const geminiModel = genAI.getGenerativeModel({
       model: targetModel,

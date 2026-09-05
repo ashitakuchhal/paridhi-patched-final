@@ -1,4 +1,4 @@
-````markdown
+
 # ⚡ PARIDHI — Multi-Agent Market Intelligence Desk
 
 > **Submission for HACKVERSE: INTO THE WEB — Round 1**  
